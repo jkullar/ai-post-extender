@@ -133,3 +133,82 @@ function pe_get_enhanced_content($content, $api_key, $extra_prompt) {
 
     return false;
 }
+// GitHub Updater
+if ( ! class_exists( 'GitHubUpdater' ) ) {
+    class GitHubUpdater {
+        private $slug;
+        private $version;
+        private $repo;
+        private $uri;
+        private $basename;
+        private $api_url;
+
+        public function __construct( $repo, $slug, $version, $uri ) {
+            $this->repo = $repo;
+            $this->slug = $slug;
+            $this->version = $version;
+            $this->uri = $uri;
+
+            // Plugin basename
+            $this->basename = plugin_basename( __FILE__ );
+
+            // API URL
+            $this->api_url = 'https://api.github.com/repos/' . $this->repo . '/releases/latest';
+
+            // Add filters
+            add_filter( 'pre_set_site_transient_update_plugins', [ $this, 'check_for_update' ] );
+            add_filter( 'plugins_api', [ $this, 'plugin_info' ], 10, 3 );
+            add_action( 'upgrader_process_complete', [ $this, 'clear_cache' ], 10, 2 );
+        }
+
+        public function check_for_update( $transient ) {
+            if ( empty( $transient->checked ) ) {
+                return $transient;
+            }
+
+            $response = wp_remote_get( $this->api_url, [
+                'headers' => [
+                    'User-Agent' => 'WordPress',
+                ],
+            ]);
+
+            if ( is_wp_error( $response ) ) {
+                return $transient; // Error getting response
+            }
+
+            $body = json_decode( wp_remote_retrieve_body( $response ) );
+
+            if ( ! empty( $body->tag_name ) && version_compare( $this->version, $body->tag_name, '<' ) ) {
+                $transient->response[ $this->basename ] = (object) [
+                    'slug' => $this->slug,
+                    'plugin' => $this->basename,
+                    'new_version' => $body->tag_name,
+                    'url' => $this->uri,
+                    'package' => $body->zipball_url,
+                ];
+            }
+
+            return $transient;
+        }
+
+        public function plugin_info( $false, $action, $response ) {
+            if ( isset( $response->slug ) && $response->slug === $this->slug ) {
+                $response->sections = [
+                    'description' => 'This is the description of your plugin.',
+                    'changelog' => 'Changelog information goes here.',
+                ];
+                return $response;
+            }
+            return $false;
+        }
+
+        public function clear_cache( $upgrader, $options ) {
+            if ( 'update' === $options['action'] && 'plugin' === $options['type'] ) {
+                delete_site_transient( 'update_plugins' );
+            }
+        }
+    }
+}
+
+// Initialize the updater
+new GitHubUpdater( 'jkullar/ai-post-extender', 'ai-post-extender', '1.0', 'https://github.com/jkullar/ai-post-extender' );

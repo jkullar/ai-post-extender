@@ -2,7 +2,7 @@
 /**
  * Plugin Name: ai Post Extender by Prefr.co
  * Description: ai Post Extender by Prefr.co is a WordPress plugin that enhances post content using the ChatGPT API if the content is below a specified minimum word count. This plugin is designed to help you improve your posts automatically by generating more content.
- * Version: 1.0.1
+ * Version: 1.0.2
  * Author: Prefr.co
  * url: https://prefr.co/
  */
@@ -212,3 +212,36 @@ if ( ! class_exists( 'GitHubUpdater' ) ) {
 
 // Initialize the updater
 new GitHubUpdater( 'jkullar/ai-post-extender', 'ai-post-extender', '1.0', 'https://github.com/jkullar/ai-post-extender' );
+
+// Hook to process posts created or updated via REST API
+add_action('rest_after_insert_post', 'pe_process_rest_api_post', 10, 2);
+
+function pe_process_rest_api_post($post, $request) {
+    // Check if content processing is enabled for this post type
+    $enabled_post_types = get_option('pe_enabled_post_types', ['post']);
+    if (!in_array($post->post_type, $enabled_post_types)) {
+        return;
+    }
+
+    // Get minimum word count
+    $min_word_count = get_option('pe_min_word_count', 300);
+
+    // Get the content and check word count
+    $content = $post->post_content;
+    $word_count = str_word_count(strip_tags($content));
+
+    // If content is below the minimum word count, send it to ChatGPT for enhancement
+    if ($word_count < $min_word_count) {
+        $api_key = get_option('pe_api_key');
+        $extra_prompt = get_option('pe_extra_prompt', '');
+
+        $enhanced_content = pe_get_enhanced_content($content, $api_key, $extra_prompt);
+        if ($enhanced_content) {
+            // Update the post with the enhanced content
+            wp_update_post([
+                'ID' => $post->ID,
+                'post_content' => $enhanced_content,
+            ]);
+        }
+    }
+}

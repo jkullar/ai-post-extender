@@ -2,7 +2,7 @@
 /**
  * Plugin Name: ai Post Extender by Prefr.co
  * Description: ai Post Extender by Prefr.co is a WordPress plugin that enhances post content using the ChatGPT API if the content is below a specified minimum word count. This plugin is designed to help you improve your posts automatically by generating more content.
- * Version: 1.0
+ * Version: 1.0.1
  * Author: Prefr.co
  * url: https://prefr.co/
  */

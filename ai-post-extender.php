@@ -228,6 +228,12 @@ function pe_process_rest_api_post($post, $request) {
 
     // Get the content and check word count
     $content = $post->post_content;
+
+    // Check if the content is empty or only whitespace
+    if (trim($content) === '') {
+        return; // Do not enhance if content is empty
+    }
+
     $word_count = str_word_count(strip_tags($content));
 
     // If content is below the minimum word count, send it to ChatGPT for enhancement
